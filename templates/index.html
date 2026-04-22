@@ -1,0 +1,1686 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Excel AI Assistant</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════════════════════════
+   DESIGN SYSTEM — Dark terminal / Bloomberg-inspired
+   ═══════════════════════════════════════════════════════════ */
+:root {
+  --bg-void:      #080b0f;
+  --bg-deep:      #0d1117;
+  --bg-panel:     #111820;
+  --bg-card:      #161d27;
+  --bg-hover:     #1c2533;
+  --bg-input:     #0d1520;
+
+  --border:       #1e2d3d;
+  --border-bright:#2a3f55;
+  --border-glow:  #00d4ff33;
+
+  --accent:       #00d4ff;
+  --accent-dim:   #0099bb;
+  --accent-glow:  #00d4ff22;
+  --green:        #00e676;
+  --green-dim:    #00c853;
+  --amber:        #ffab00;
+  --amber-dim:    #ff8f00;
+  --red:          #ff5252;
+  --red-dim:      #e53935;
+  --purple:       #ce93d8;
+
+  --text-primary:   #e8f4f8;
+  --text-secondary: #8baabf;
+  --text-muted:     #4a6275;
+  --text-code:      #00d4ff;
+
+  --font-mono:  'JetBrains Mono', 'Fira Code', monospace;
+  --font-ui:    'Syne', sans-serif;
+
+  --radius-sm:  3px;
+  --radius:     6px;
+  --radius-lg:  10px;
+
+  --transition: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  background: var(--bg-void);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.6;
+  overflow: hidden;
+}
+
+/* ── Scrollbars ─────────────────────────────────────────── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: var(--accent-dim); }
+
+/* ═══════════════════════════════════════════════════════════
+   LAYOUT
+   ═══════════════════════════════════════════════════════════ */
+#app {
+  display: grid;
+  grid-template-rows: 48px 1fr;
+  grid-template-columns: 220px 1fr 340px;
+  grid-template-areas:
+    "topbar topbar topbar"
+    "sidebar main  chat";
+  height: 100vh;
+}
+
+/* ── Top Bar ────────────────────────────────────────────── */
+#topbar {
+  grid-area: topbar;
+  display: flex;
+  align-items: center;
+  gap: 0;
+  background: var(--bg-deep);
+  border-bottom: 1px solid var(--border);
+  padding: 0 16px;
+  position: relative;
+  z-index: 100;
+}
+
+.topbar-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-right: 24px;
+}
+.topbar-logo .logo-icon {
+  width: 28px; height: 28px;
+  background: var(--accent);
+  border-radius: 4px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--bg-void);
+  font-family: var(--font-ui);
+  flex-shrink: 0;
+}
+.topbar-logo .logo-text {
+  font-family: var(--font-ui);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: 0.02em;
+}
+.topbar-logo .logo-sub {
+  font-size: 10px;
+  color: var(--text-muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.topbar-tabs {
+  display: flex;
+  gap: 2px;
+  flex: 1;
+}
+.topbar-tab {
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  font-family: var(--font-mono);
+  transition: all var(--transition);
+  white-space: nowrap;
+}
+.topbar-tab:hover { color: var(--text-secondary); background: var(--bg-hover); }
+.topbar-tab.active {
+  color: var(--accent);
+  background: var(--accent-glow);
+  border: 1px solid var(--border-glow);
+}
+
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+}
+
+.status-pill {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-muted);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.status-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  transition: all var(--transition);
+}
+.status-pill.ready .status-dot { background: var(--green); box-shadow: 0 0 6px var(--green); }
+.status-pill.ready { color: var(--green); border-color: #00e67633; }
+.status-pill.error .status-dot { background: var(--red); }
+.status-pill.error { color: var(--red); border-color: #ff525233; }
+
+/* ── Sidebar ────────────────────────────────────────────── */
+#sidebar {
+  grid-area: sidebar;
+  background: var(--bg-deep);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.sidebar-section {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+.sidebar-label {
+  padding: 0 14px 8px;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 14px;
+  cursor: pointer;
+  border-left: 2px solid transparent;
+  transition: all var(--transition);
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.sidebar-item:hover { background: var(--bg-hover); color: var(--text-primary); }
+.sidebar-item.active {
+  color: var(--accent);
+  background: var(--accent-glow);
+  border-left-color: var(--accent);
+}
+.sidebar-item .item-icon { font-size: 13px; flex-shrink: 0; width: 16px; text-align: center; }
+.sidebar-item .item-badge {
+  margin-left: auto;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1px 6px;
+  font-size: 9px;
+  color: var(--text-muted);
+}
+.sidebar-item.active .item-badge {
+  background: var(--accent-glow);
+  border-color: var(--border-glow);
+  color: var(--accent);
+}
+
+.sidebar-prompts {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 0;
+}
+.prompt-chip {
+  display: block;
+  margin: 2px 10px;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all var(--transition);
+  border: 1px solid transparent;
+  line-height: 1.4;
+}
+.prompt-chip:hover {
+  color: var(--text-secondary);
+  background: var(--bg-hover);
+  border-color: var(--border);
+}
+.prompt-chip .chip-tag {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  display: block;
+  margin-bottom: 2px;
+}
+.chip-tag.re  { color: var(--accent); }
+.chip-tag.mkt { color: var(--amber); }
+
+/* ── Main Content ───────────────────────────────────────── */
+#main {
+  grid-area: main;
+  background: var(--bg-panel);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.view { display: none; flex-direction: column; height: 100%; }
+.view.active { display: flex; }
+
+/* ── Panel Header ───────────────────────────────────────── */
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-deep);
+  flex-shrink: 0;
+}
+.panel-title {
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: 0.02em;
+}
+.panel-subtitle {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 1px;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   DASHBOARD VIEW
+   ═══════════════════════════════════════════════════════════ */
+#view-dashboard {
+  overflow-y: auto;
+  padding: 18px;
+  gap: 16px;
+}
+
+.dash-section-title {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.dash-section-title::before {
+  content: '';
+  display: block;
+  width: 3px; height: 12px;
+  background: var(--accent);
+  border-radius: 2px;
+}
+.dash-section-title.amber::before { background: var(--amber); }
+
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.kpi-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  position: relative;
+  overflow: hidden;
+  transition: border-color var(--transition);
+}
+.kpi-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: var(--accent);
+  opacity: 0.6;
+}
+.kpi-card.amber::before { background: var(--amber); }
+.kpi-card.green::before { background: var(--green); }
+.kpi-card.purple::before { background: var(--purple); }
+.kpi-card:hover { border-color: var(--border-bright); }
+
+.kpi-label {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+.kpi-value {
+  font-family: var(--font-ui);
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--text-primary);
+  line-height: 1;
+  margin-bottom: 4px;
+}
+.kpi-value.accent  { color: var(--accent); }
+.kpi-value.amber   { color: var(--amber); }
+.kpi-value.green   { color: var(--green); }
+.kpi-value.purple  { color: var(--purple); }
+.kpi-sub {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.chart-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.chart-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+}
+.chart-card-title {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+
+/* Bar charts */
+.bar-list { display: flex; flex-direction: column; gap: 7px; }
+.bar-item { display: flex; flex-direction: column; gap: 3px; }
+.bar-header { display: flex; justify-content: space-between; align-items: baseline; }
+.bar-key { font-size: 11px; color: var(--text-secondary); }
+.bar-val { font-size: 11px; font-weight: 600; color: var(--text-primary); }
+.bar-track {
+  height: 4px;
+  background: var(--bg-hover);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: var(--accent);
+  transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.bar-fill.amber  { background: var(--amber); }
+.bar-fill.green  { background: var(--green); }
+.bar-fill.purple { background: var(--purple); }
+
+/* Status pills row */
+.status-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px; }
+.status-block {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  text-align: center;
+}
+.status-block-num {
+  font-family: var(--font-ui);
+  font-size: 28px;
+  font-weight: 800;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+.status-block-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   TABLE / DATA BROWSER VIEW
+   ═══════════════════════════════════════════════════════════ */
+.table-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-deep);
+  flex-shrink: 0;
+}
+
+.search-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  max-width: 280px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 5px 10px;
+  transition: border-color var(--transition);
+}
+.search-box:focus-within { border-color: var(--accent); }
+.search-box input {
+  background: none;
+  border: none;
+  outline: none;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  flex: 1;
+  min-width: 0;
+}
+.search-box input::placeholder { color: var(--text-muted); }
+.search-icon { color: var(--text-muted); font-size: 12px; }
+
+.file-toggle {
+  display: flex;
+  gap: 2px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 2px;
+}
+.file-toggle-btn {
+  padding: 4px 12px;
+  border-radius: 2px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  font-family: var(--font-mono);
+  transition: all var(--transition);
+  letter-spacing: 0.04em;
+}
+.file-toggle-btn.active {
+  background: var(--accent);
+  color: var(--bg-void);
+  font-weight: 700;
+}
+
+.toolbar-info {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.table-wrap {
+  flex: 1;
+  overflow: auto;
+  position: relative;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+thead {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+th {
+  background: var(--bg-deep);
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 8px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  transition: color var(--transition);
+}
+th:hover { color: var(--text-primary); }
+th.sorted { color: var(--accent); }
+th .sort-arrow { margin-left: 4px; opacity: 0.6; }
+
+td {
+  padding: 7px 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-secondary);
+  white-space: nowrap;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+tr:hover td { background: var(--bg-hover); color: var(--text-primary); }
+tr:hover td:first-child { color: var(--accent); }
+
+.cell-id    { color: var(--accent); font-weight: 500; }
+.cell-price { color: var(--green); font-weight: 500; }
+.cell-status-active  { color: var(--green); }
+.cell-status-sold    { color: var(--text-muted); }
+.cell-status-pending { color: var(--amber); }
+.cell-channel        { color: var(--purple); }
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-deep);
+  flex-shrink: 0;
+}
+.page-btn {
+  width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  font-size: 11px;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  transition: all var(--transition);
+}
+.page-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.page-btn:disabled { opacity: 0.3; cursor: default; }
+.page-btn.current { background: var(--accent); color: var(--bg-void); border-color: var(--accent); font-weight: 700; }
+.page-info { font-size: 11px; color: var(--text-muted); padding: 0 8px; }
+
+/* ═══════════════════════════════════════════════════════════
+   CHAT PANEL
+   ═══════════════════════════════════════════════════════════ */
+#chat-panel {
+  grid-area: chat;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-deep);
+  border-left: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.chat-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.chat-header-title {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.chat-header-sub {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.btn-icon {
+  width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 13px;
+  transition: all var(--transition);
+}
+.btn-icon:hover { border-color: var(--border-bright); color: var(--text-primary); background: var(--bg-hover); }
+
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* Messages */
+.msg {
+  max-width: 100%;
+  animation: msgIn 0.18s ease-out;
+}
+@keyframes msgIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.msg-user {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+.msg-user .bubble {
+  background: var(--accent);
+  color: var(--bg-void);
+  padding: 8px 12px;
+  border-radius: var(--radius) var(--radius) 2px var(--radius);
+  font-size: 12px;
+  line-height: 1.5;
+  max-width: 90%;
+  font-weight: 500;
+}
+
+.msg-assistant {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+}
+.msg-assistant .bubble {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  padding: 10px 12px;
+  border-radius: 2px var(--radius) var(--radius) var(--radius);
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.msg-tool-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  font-size: 10px;
+  color: var(--text-muted);
+  align-self: flex-start;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.msg-tool-badge:hover { border-color: var(--accent); color: var(--accent); }
+.msg-tool-badge .tool-dot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.msg-timestamp {
+  font-size: 9px;
+  color: var(--text-muted);
+  padding: 0 2px;
+  align-self: flex-end;
+}
+
+/* Tool detail drawer */
+.tool-detail {
+  background: var(--bg-void);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 4px;
+  overflow: hidden;
+  max-height: 0;
+  transition: max-height 0.3s ease, padding 0.3s ease;
+}
+.tool-detail.open { max-height: 300px; overflow-y: auto; }
+.tool-detail pre {
+  white-space: pre-wrap;
+  word-break: break-all;
+  color: var(--text-code);
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+/* Typing indicator */
+.typing-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+.typing-dots {
+  display: flex;
+  gap: 3px;
+}
+.typing-dots span {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: typingBounce 1.2s infinite;
+}
+.typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+.typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes typingBounce {
+  0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
+  40%            { transform: translateY(-4px); opacity: 1; }
+}
+
+/* Welcome state */
+.chat-welcome {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  gap: 12px;
+  color: var(--text-muted);
+  text-align: center;
+}
+.chat-welcome .welcome-icon {
+  font-size: 32px;
+  opacity: 0.4;
+}
+.chat-welcome .welcome-title {
+  font-family: var(--font-ui);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+.chat-welcome .welcome-hint {
+  font-size: 11px;
+  line-height: 1.6;
+  max-width: 220px;
+}
+
+/* Input area */
+.chat-input-area {
+  border-top: 1px solid var(--border);
+  padding: 10px 12px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.input-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+}
+
+#chat-input {
+  flex: 1;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: 8px 10px;
+  resize: none;
+  min-height: 36px;
+  max-height: 120px;
+  outline: none;
+  line-height: 1.5;
+  transition: border-color var(--transition);
+}
+#chat-input:focus { border-color: var(--accent); }
+#chat-input::placeholder { color: var(--text-muted); }
+
+#send-btn {
+  width: 36px; height: 36px;
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  border: none;
+  color: var(--bg-void);
+  font-size: 14px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  transition: all var(--transition);
+  font-weight: 700;
+}
+#send-btn:hover:not(:disabled) { background: #00eeff; transform: scale(1.05); }
+#send-btn:disabled { background: var(--bg-hover); color: var(--text-muted); cursor: default; transform: none; }
+
+.input-hint {
+  font-size: 10px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+/* ── Error / empty states ─────────────────────────────── */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  color: var(--text-muted);
+  gap: 10px;
+  text-align: center;
+}
+.empty-state .empty-icon { font-size: 28px; opacity: 0.4; }
+.empty-state .empty-title { font-size: 13px; color: var(--text-secondary); font-weight: 600; }
+.empty-state .empty-sub { font-size: 11px; }
+
+.loading-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 20px;
+  color: var(--text-muted);
+  font-size: 12px;
+  justify-content: center;
+}
+
+/* ── Notification toast ──────────────────────────────── */
+#toast {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%) translateY(60px);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 18px;
+  font-size: 12px;
+  color: var(--text-primary);
+  z-index: 9999;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s;
+  opacity: 0;
+  pointer-events: none;
+  white-space: nowrap;
+}
+#toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+#toast.success { border-color: var(--green); color: var(--green); }
+#toast.error   { border-color: var(--red);   color: var(--red); }
+
+/* ── Responsive tweaks ───────────────────────────────── */
+@media (max-width: 1100px) {
+  #app { grid-template-columns: 180px 1fr 300px; }
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 900px) {
+  #app {
+    grid-template-columns: 1fr;
+    grid-template-rows: 48px 1fr 380px;
+    grid-template-areas: "topbar" "main" "chat";
+  }
+  #sidebar { display: none; }
+  #chat-panel { border-left: none; border-top: 1px solid var(--border); }
+}
+
+/* ── Utility ──────────────────────────────────────────── */
+.flex { display: flex; }
+.gap-8 { gap: 8px; }
+.ml-auto { margin-left: auto; }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ── TOP BAR ───────────────────────────────────────────────── -->
+  <header id="topbar">
+    <div class="topbar-logo">
+      <div class="logo-icon">X</div>
+      <div>
+        <div class="logo-text">ExcelAI</div>
+      </div>
+    </div>
+
+    <div class="topbar-tabs">
+      <button class="topbar-tab active" data-view="dashboard">⬡ Dashboard</button>
+      <button class="topbar-tab" data-view="real-estate">⌂ Real Estate</button>
+      <button class="topbar-tab" data-view="marketing">◈ Marketing</button>
+    </div>
+
+    <div class="topbar-right">
+      <div class="status-pill" id="status-pill">
+        <div class="status-dot"></div>
+        <span id="status-text">connecting…</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ── SIDEBAR ──────────────────────────────────────────────── -->
+  <nav id="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-label">Data Files</div>
+      <div class="sidebar-item active" data-view="real-estate">
+        <span class="item-icon">⌂</span>
+        Real Estate
+        <span class="item-badge" id="badge-re">…</span>
+      </div>
+      <div class="sidebar-item" data-view="marketing">
+        <span class="item-icon">◈</span>
+        Marketing
+        <span class="item-badge" id="badge-mkt">…</span>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Quick Queries</div>
+    </div>
+
+    <div class="sidebar-prompts">
+      <div class="sidebar-label" style="padding:4px 14px 6px;">Real Estate</div>
+      <div class="prompt-chip" data-prompt="Show me all active listings in California">
+        <span class="chip-tag re">RE</span>
+        Active listings in CA
+      </div>
+      <div class="prompt-chip" data-prompt="What is the average list price by property type?">
+        <span class="chip-tag re">RE</span>
+        Avg price by type
+      </div>
+      <div class="prompt-chip" data-prompt="Show the 10 most expensive houses for sale">
+        <span class="chip-tag re">RE</span>
+        Top 10 expensive
+      </div>
+      <div class="prompt-chip" data-prompt="How many listings are there in each state?">
+        <span class="chip-tag re">RE</span>
+        Count by state
+      </div>
+      <div class="prompt-chip" data-prompt="Find all condos under $300,000 that are active">
+        <span class="chip-tag re">RE</span>
+        Condos under $300k
+      </div>
+
+      <div class="sidebar-label" style="padding:12px 14px 6px;">Marketing</div>
+      <div class="prompt-chip" data-prompt="Which marketing channel has the highest average ROI?">
+        <span class="chip-tag mkt">MKT</span>
+        Best ROI channel
+      </div>
+      <div class="prompt-chip" data-prompt="What is the total revenue generated by Facebook campaigns?">
+        <span class="chip-tag mkt">MKT</span>
+        Facebook revenue
+      </div>
+      <div class="prompt-chip" data-prompt="Show me the top 5 campaigns by revenue generated">
+        <span class="chip-tag mkt">MKT</span>
+        Top 5 by revenue
+      </div>
+      <div class="prompt-chip" data-prompt="What is the average click-through rate by channel?">
+        <span class="chip-tag mkt">MKT</span>
+        CTR by channel
+      </div>
+      <div class="prompt-chip" data-prompt="Which campaigns went over their budget?">
+        <span class="chip-tag mkt">MKT</span>
+        Over-budget campaigns
+      </div>
+    </div>
+  </nav>
+
+  <!-- ── MAIN CONTENT ──────────────────────────────────────────── -->
+  <main id="main">
+
+    <!-- Dashboard View -->
+    <div class="view active" id="view-dashboard" style="overflow-y:auto;padding:18px;flex-direction:column;gap:0;">
+
+      <!-- Real Estate Section -->
+      <div class="dash-section-title" style="margin-bottom:10px">Real Estate Overview</div>
+      <div class="kpi-grid" id="re-kpis">
+        <div class="kpi-card"><div class="kpi-label">Total Listings</div><div class="kpi-value accent" id="kpi-total">—</div></div>
+        <div class="kpi-card green"><div class="kpi-label">Active</div><div class="kpi-value green" id="kpi-active">—</div></div>
+        <div class="kpi-card amber"><div class="kpi-label">Pending</div><div class="kpi-value amber" id="kpi-pending">—</div></div>
+        <div class="kpi-card purple"><div class="kpi-label">Sold</div><div class="kpi-value purple" id="kpi-sold">—</div></div>
+      </div>
+
+      <div class="kpi-grid" style="margin-bottom:16px">
+        <div class="kpi-card"><div class="kpi-label">Avg List Price</div><div class="kpi-value" id="kpi-avg-list" style="font-size:16px">—</div></div>
+        <div class="kpi-card"><div class="kpi-label">Avg Sale Price</div><div class="kpi-value" id="kpi-avg-sale" style="font-size:16px">—</div></div>
+        <div class="kpi-card" style="grid-column:span 2">
+          <div class="kpi-label">Listings by Status</div>
+          <div style="display:flex;gap:16px;margin-top:8px" id="status-bars"></div>
+        </div>
+      </div>
+
+      <div class="chart-row" style="margin-bottom:16px">
+        <div class="chart-card">
+          <div class="chart-card-title">Avg Price by Property Type</div>
+          <div class="bar-list" id="chart-price-type"></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-card-title">Listings by State (Top 10)</div>
+          <div class="bar-list" id="chart-by-state"></div>
+        </div>
+      </div>
+
+      <!-- Marketing Section -->
+      <div class="dash-section-title amber" style="margin-bottom:10px">Marketing Overview</div>
+      <div class="kpi-grid" style="margin-bottom:12px">
+        <div class="kpi-card amber"><div class="kpi-label">Total Campaigns</div><div class="kpi-value amber" id="kpi-campaigns">—</div></div>
+        <div class="kpi-card green"><div class="kpi-label">Total Revenue</div><div class="kpi-value green" id="kpi-mkt-rev" style="font-size:15px">—</div></div>
+        <div class="kpi-card"><div class="kpi-label">Total Budget</div><div class="kpi-value" id="kpi-mkt-budget" style="font-size:15px">—</div></div>
+        <div class="kpi-card purple"><div class="kpi-label">Total Conversions</div><div class="kpi-value purple" id="kpi-conv">—</div></div>
+      </div>
+
+      <div class="chart-row">
+        <div class="chart-card">
+          <div class="chart-card-title">Revenue by Channel</div>
+          <div class="bar-list" id="chart-rev-channel"></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-card-title">ROI % by Channel</div>
+          <div class="bar-list" id="chart-roi-channel"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Real Estate Data View -->
+    <div class="view" id="view-real-estate" style="flex-direction:column">
+      <div class="panel-header">
+        <div>
+          <div class="panel-title">Real Estate Listings</div>
+          <div class="panel-subtitle" id="re-subtitle">Loading…</div>
+        </div>
+      </div>
+      <div class="table-toolbar">
+        <div class="search-box">
+          <span class="search-icon">⌕</span>
+          <input type="text" id="re-search" placeholder="Search listings…">
+        </div>
+        <div class="toolbar-info" id="re-toolbar-info"></div>
+      </div>
+      <div class="table-wrap" id="re-table-wrap">
+        <div class="loading-row">Loading data…</div>
+      </div>
+      <div class="pagination" id="re-pagination"></div>
+    </div>
+
+    <!-- Marketing Data View -->
+    <div class="view" id="view-marketing" style="flex-direction:column">
+      <div class="panel-header">
+        <div>
+          <div class="panel-title">Marketing Campaigns</div>
+          <div class="panel-subtitle" id="mkt-subtitle">Loading…</div>
+        </div>
+      </div>
+      <div class="table-toolbar">
+        <div class="search-box">
+          <span class="search-icon">⌕</span>
+          <input type="text" id="mkt-search" placeholder="Search campaigns…">
+        </div>
+        <div class="toolbar-info" id="mkt-toolbar-info"></div>
+      </div>
+      <div class="table-wrap" id="mkt-table-wrap">
+        <div class="loading-row">Loading data…</div>
+      </div>
+      <div class="pagination" id="mkt-pagination"></div>
+    </div>
+
+  </main>
+
+  <!-- ── CHAT PANEL ────────────────────────────────────────────── -->
+  <aside id="chat-panel">
+    <div class="chat-header">
+      <div>
+        <div class="chat-header-title">AI Assistant</div>
+        <div class="chat-header-sub">Natural language data queries</div>
+      </div>
+      <button class="btn-icon" id="reset-btn" title="Clear conversation">↺</button>
+    </div>
+
+    <div class="chat-messages" id="chat-messages">
+      <div class="chat-welcome" id="chat-welcome">
+        <div class="welcome-icon">◈</div>
+        <div class="welcome-title">Ask anything</div>
+        <div class="welcome-hint">
+          Query, insert, update, or delete data using plain English. Try the quick queries on the left.
+        </div>
+      </div>
+    </div>
+
+    <div class="chat-input-area">
+      <div class="input-row">
+        <textarea
+          id="chat-input"
+          placeholder="Ask a question or give a command…"
+          rows="1"
+        ></textarea>
+        <button id="send-btn" title="Send (Enter)">↑</button>
+      </div>
+      <div class="input-hint">Enter to send · Shift+Enter for new line</div>
+    </div>
+  </aside>
+
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════
+   ExcelAI Frontend — Vanilla JS
+   ═══════════════════════════════════════════════════════════════ */
+
+const API = '';  // Same origin — Flask serves this page
+
+// ── State ─────────────────────────────────────────────────────
+const state = {
+  currentView:  'dashboard',
+  re: { page: 1, perPage: 20, search: '', sortCol: '', sortDir: 'asc', total: 0, totalPages: 1 },
+  mkt:{ page: 1, perPage: 20, search: '', sortCol: '', sortDir: 'asc', total: 0, totalPages: 1 },
+  sending: false,
+  searchTimers: {},
+};
+
+// ── DOM refs ───────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+const chatMessages  = $('chat-messages');
+const chatInput     = $('chat-input');
+const sendBtn       = $('send-btn');
+const chatWelcome   = $('chat-welcome');
+const statusPill    = $('status-pill');
+const statusText    = $('status-text');
+
+// ═══════════════════════════════════════════════════════════════
+// NAV — tab + sidebar switching
+// ═══════════════════════════════════════════════════════════════
+
+function switchView(viewName) {
+  state.currentView = viewName;
+
+  // Topbar tabs
+  document.querySelectorAll('.topbar-tab').forEach(t => {
+    t.classList.toggle('active', t.dataset.view === viewName);
+  });
+  // Sidebar items
+  document.querySelectorAll('.sidebar-item').forEach(t => {
+    t.classList.toggle('active', t.dataset.view === viewName);
+  });
+  // Views
+  document.querySelectorAll('.view').forEach(v => {
+    v.classList.toggle('active', v.id === `view-${viewName}`);
+  });
+
+  // Lazy-load table data on first visit
+  if (viewName === 'real-estate' && !state.re.loaded) {
+    loadTable('real_estate');
+  }
+  if (viewName === 'marketing' && !state.mkt.loaded) {
+    loadTable('marketing');
+  }
+}
+
+document.querySelectorAll('[data-view]').forEach(el => {
+  el.addEventListener('click', () => switchView(el.dataset.view));
+});
+
+// ═══════════════════════════════════════════════════════════════
+// HEALTH CHECK + STATS on load
+// ═══════════════════════════════════════════════════════════════
+
+async function init() {
+  try {
+    const res  = await fetch(`${API}/api/health`);
+    const data = await res.json();
+    if (data.llm_ready) {
+      statusPill.className = 'status-pill ready';
+      statusText.textContent = data.groq_key ? 'Groq · Ready' : 'Gemini · Ready';
+    } else {
+      statusPill.className = 'status-pill error';
+      statusText.textContent = 'No API Key';
+      showToast('⚠ No LLM API key found. Add GROQ_API_KEY to .env', 'error', 5000);
+    }
+  } catch(e) {
+    statusPill.className = 'status-pill error';
+    statusText.textContent = 'Offline';
+  }
+
+  await loadStats();
+  loadTable('real_estate');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// DASHBOARD STATS
+// ═══════════════════════════════════════════════════════════════
+
+async function loadStats() {
+  try {
+    const res  = await fetch(`${API}/api/stats`);
+    const data = await res.json();
+    if (!data.ok) return;
+
+    const re  = data.real_estate;
+    const mkt = data.marketing;
+
+    // KPI cards
+    $('kpi-total').textContent   = fmtNum(re.total_listings);
+    $('kpi-active').textContent  = fmtNum(re.active);
+    $('kpi-pending').textContent = fmtNum(re.pending);
+    $('kpi-sold').textContent    = fmtNum(re.sold);
+    $('kpi-avg-list').textContent = fmtPrice(re.avg_list_price);
+    $('kpi-avg-sale').textContent = fmtPrice(re.avg_sale_price);
+
+    // Badges
+    $('badge-re').textContent  = fmtNum(re.total_listings);
+    $('badge-mkt').textContent = fmtNum(mkt.total_campaigns);
+
+    // Status mini-bars
+    const total = re.total_listings;
+    $('status-bars').innerHTML = [
+      { label: 'Active',  val: re.active,  pct: re.active/total*100,  cls: 'green' },
+      { label: 'Pending', val: re.pending, pct: re.pending/total*100, cls: 'amber' },
+      { label: 'Sold',    val: re.sold,    pct: re.sold/total*100,    cls: 'purple' },
+    ].map(s => `
+      <div style="flex:1">
+        <div style="font-size:9px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">${s.label}</div>
+        <div class="bar-track"><div class="bar-fill ${s.cls}" style="width:${s.pct}%"></div></div>
+        <div style="font-size:11px;margin-top:3px;font-weight:600">${fmtNum(s.val)}</div>
+      </div>
+    `).join('');
+
+    // Avg price by type
+    renderBars('chart-price-type', re.avg_price_by_type, fmtPrice, 'accent');
+
+    // Listings by state
+    renderBars('chart-by-state', re.by_state, fmtNum, 'green');
+
+    // Marketing KPIs
+    $('kpi-campaigns').textContent   = fmtNum(mkt.total_campaigns);
+    $('kpi-mkt-rev').textContent     = fmtPrice(mkt.total_revenue);
+    $('kpi-mkt-budget').textContent  = fmtPrice(mkt.total_budget);
+    $('kpi-conv').textContent        = fmtNum(mkt.total_conversions);
+
+    // Revenue by channel
+    renderBars('chart-rev-channel', mkt.revenue_by_channel, fmtPrice, 'amber');
+
+    // ROI by channel
+    const roiFmt = v => (v >= 0 ? '+' : '') + v.toFixed(1) + '%';
+    renderBars('chart-roi-channel', mkt.avg_roi_by_channel, roiFmt, 'green');
+
+  } catch(e) {
+    console.error('Stats load failed:', e);
+  }
+}
+
+function renderBars(containerId, dataObj, fmt, colorClass) {
+  const entries = Object.entries(dataObj).sort((a,b) => b[1] - a[1]);
+  const maxVal  = Math.max(...entries.map(([,v]) => Math.abs(v)));
+  const container = $(containerId);
+  if (!container) return;
+
+  container.innerHTML = entries.map(([key, val]) => `
+    <div class="bar-item">
+      <div class="bar-header">
+        <span class="bar-key">${key}</span>
+        <span class="bar-val">${fmt(val)}</span>
+      </div>
+      <div class="bar-track">
+        <div class="bar-fill ${colorClass}" style="width:${maxVal ? Math.abs(val)/maxVal*100 : 0}%"></div>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// TABLE DATA
+// ═══════════════════════════════════════════════════════════════
+
+async function loadTable(fileKey) {
+  const isRE = fileKey === 'real_estate';
+  const s    = isRE ? state.re : state.mkt;
+  const wrap = isRE ? $('re-table-wrap') : $('mkt-table-wrap');
+  const sub  = isRE ? $('re-subtitle')   : $('mkt-subtitle');
+  const info = isRE ? $('re-toolbar-info') : $('mkt-toolbar-info');
+
+  wrap.innerHTML = `<div class="loading-row"><span>Loading…</span></div>`;
+
+  try {
+    const params = new URLSearchParams({
+      page:     s.page,
+      per_page: s.perPage,
+      search:   s.search,
+      sort_col: s.sortCol,
+      sort_dir: s.sortDir,
+    });
+    const res  = await fetch(`${API}/api/data/${fileKey}?${params}`);
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error);
+
+    // Update state
+    s.total      = data.total_rows;
+    s.totalPages = data.total_pages;
+    if (isRE) state.re.loaded = true;
+    else      state.mkt.loaded = true;
+
+    // Subtitle
+    sub.textContent  = `${fmtNum(data.total_rows)} rows · Page ${data.page} of ${data.total_pages}`;
+    info.textContent = s.search ? `Showing ${data.rows.length} of ${fmtNum(data.total_rows)} matching "${s.search}"` : `${fmtNum(data.total_rows)} total rows`;
+
+    // Render table
+    wrap.innerHTML = renderTable(data.rows, data.columns, fileKey, s.sortCol, s.sortDir);
+
+    // Sort click handlers
+    wrap.querySelectorAll('th[data-col]').forEach(th => {
+      th.addEventListener('click', () => {
+        const col = th.dataset.col;
+        if (s.sortCol === col) {
+          s.sortDir = s.sortDir === 'asc' ? 'desc' : 'asc';
+        } else {
+          s.sortCol = col;
+          s.sortDir = 'asc';
+        }
+        s.page = 1;
+        loadTable(fileKey);
+      });
+    });
+
+    // Pagination
+    renderPagination(isRE ? 're-pagination' : 'mkt-pagination', s.page, s.totalPages, (p) => {
+      s.page = p;
+      loadTable(fileKey);
+    });
+
+  } catch(e) {
+    wrap.innerHTML = `<div class="empty-state">
+      <div class="empty-icon">⚠</div>
+      <div class="empty-title">Failed to load data</div>
+      <div class="empty-sub">${e.message}</div>
+    </div>`;
+  }
+}
+
+function renderTable(rows, columns, fileKey, sortCol, sortDir) {
+  if (!rows.length) {
+    return `<div class="empty-state">
+      <div class="empty-icon">∅</div>
+      <div class="empty-title">No rows found</div>
+      <div class="empty-sub">Try a different search term</div>
+    </div>`;
+  }
+
+  const isRE = fileKey === 'real_estate';
+  const idCol = isRE ? 'Listing ID' : 'Campaign ID';
+
+  const thead = `<thead><tr>${columns.map(col => {
+    const isSorted = col === sortCol;
+    const arrow    = isSorted ? (sortDir === 'asc' ? ' ↑' : ' ↓') : '';
+    return `<th data-col="${col}" class="${isSorted ? 'sorted' : ''}">${col}<span class="sort-arrow">${arrow}</span></th>`;
+  }).join('')}</tr></thead>`;
+
+  const tbody = `<tbody>${rows.map(row => {
+    const cells = columns.map(col => {
+      let val = row[col];
+      if (val === null || val === undefined) val = '—';
+
+      let cls = '';
+      if (col === idCol) cls = 'cell-id';
+      else if (col === 'List Price' || col === 'Sale Price' || col === 'Revenue Generated' || col === 'Budget Allocated' || col === 'Amount Spent') {
+        cls = 'cell-price';
+        if (typeof val === 'number') val = fmtPrice(val);
+      }
+      else if (col === 'Listing Status') {
+        cls = `cell-status-${String(val).toLowerCase()}`;
+      }
+      else if (col === 'Channel') cls = 'cell-channel';
+      else if (typeof val === 'number' && val > 1000) val = fmtNum(val);
+
+      return `<td class="${cls}" title="${val}">${val}</td>`;
+    }).join('');
+    return `<tr>${cells}</tr>`;
+  }).join('')}</tbody>`;
+
+  return `<table>${thead}${tbody}</table>`;
+}
+
+function renderPagination(containerId, current, total, onPage) {
+  const container = $(containerId);
+  if (!container || total <= 1) { if(container) container.innerHTML = ''; return; }
+
+  let pages = [];
+  if (total <= 7) {
+    for (let i = 1; i <= total; i++) pages.push(i);
+  } else {
+    pages = [1];
+    if (current > 3) pages.push('…');
+    for (let i = Math.max(2, current-1); i <= Math.min(total-1, current+1); i++) pages.push(i);
+    if (current < total - 2) pages.push('…');
+    pages.push(total);
+  }
+
+  container.innerHTML = `
+    <button class="page-btn" ${current===1?'disabled':''} data-page="${current-1}">‹</button>
+    ${pages.map(p => p === '…'
+      ? `<span class="page-info">…</span>`
+      : `<button class="page-btn ${p===current?'current':''}" data-page="${p}">${p}</button>`
+    ).join('')}
+    <button class="page-btn" ${current===total?'disabled':''} data-page="${current+1}">›</button>
+    <span class="page-info">${current} / ${total}</span>
+  `;
+
+  container.querySelectorAll('[data-page]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const p = parseInt(btn.dataset.page);
+      if (p >= 1 && p <= total) onPage(p);
+    });
+  });
+}
+
+// Search with debounce
+$('re-search').addEventListener('input', e => {
+  clearTimeout(state.searchTimers.re);
+  state.searchTimers.re = setTimeout(() => {
+    state.re.search = e.target.value;
+    state.re.page = 1;
+    loadTable('real_estate');
+  }, 350);
+});
+$('mkt-search').addEventListener('input', e => {
+  clearTimeout(state.searchTimers.mkt);
+  state.searchTimers.mkt = setTimeout(() => {
+    state.mkt.search = e.target.value;
+    state.mkt.page = 1;
+    loadTable('marketing');
+  }, 350);
+});
+
+// ═══════════════════════════════════════════════════════════════
+// CHAT
+// ═══════════════════════════════════════════════════════════════
+
+function addMessage(role, text, toolName, toolArgs, toolResult) {
+  // Remove welcome on first message
+  if (chatWelcome && chatWelcome.parentNode) chatWelcome.remove();
+
+  const now = new Date().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
+  const wrapper = document.createElement('div');
+
+  if (role === 'user') {
+    wrapper.className = 'msg msg-user';
+    wrapper.innerHTML = `<div class="bubble">${escHtml(text)}</div>`;
+  } else {
+    // Format assistant text: bold **text**, code `text`
+    const formatted = escHtml(text)
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/`([^`]+)`/g, '<code style="background:var(--bg-void);padding:1px 4px;border-radius:3px;color:var(--accent)">$1</code>');
+
+    let toolBadgeHtml = '';
+    if (toolName) {
+      const toolId = `tool-${Date.now()}`;
+      toolBadgeHtml = `
+        <div class="msg-tool-badge" onclick="toggleToolDetail('${toolId}')">
+          <div class="tool-dot"></div>
+          ${toolName}
+          <span style="opacity:0.5;font-size:9px">▾</span>
+        </div>
+        <div class="tool-detail" id="${toolId}">
+          <pre>${escHtml(JSON.stringify({ args: toolArgs, result: toolResult }, null, 2))}</pre>
+        </div>
+      `;
+    }
+
+    wrapper.className = 'msg msg-assistant';
+    wrapper.innerHTML = `
+      <div class="bubble">${formatted}</div>
+      ${toolBadgeHtml}
+      <span class="msg-timestamp">${now}</span>
+    `;
+  }
+
+  chatMessages.appendChild(wrapper);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+function toggleToolDetail(id) {
+  const el = $(id);
+  if (el) el.classList.toggle('open');
+}
+
+function showTyping() {
+  const el = document.createElement('div');
+  el.className = 'typing-indicator';
+  el.id = 'typing-indicator';
+  el.innerHTML = `
+    <div class="typing-dots"><span></span><span></span><span></span></div>
+    <span>Thinking…</span>
+  `;
+  chatMessages.appendChild(el);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+function hideTyping() {
+  const el = $('typing-indicator');
+  if (el) el.remove();
+}
+
+async function sendMessage() {
+  const text = chatInput.value.trim();
+  if (!text || state.sending) return;
+
+  state.sending = true;
+  sendBtn.disabled = true;
+  chatInput.value = '';
+  autoResize(chatInput);
+
+  addMessage('user', text);
+  showTyping();
+
+  try {
+    const res  = await fetch(`${API}/api/chat`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ message: text }),
+    });
+    const data = await res.json();
+    hideTyping();
+
+    if (data.ok) {
+      addMessage('assistant', data.response, data.tool_used, data.tool_args, data.tool_result);
+      // If the tool mutated data, refresh dashboard & current table
+      const mutating = ['insert_row', 'update_rows', 'delete_rows'];
+      if (mutating.includes(data.tool_used)) {
+        loadStats();
+        if (state.currentView === 'real-estate') loadTable('real_estate');
+        if (state.currentView === 'marketing')   loadTable('marketing');
+        showToast('✓ Data updated', 'success');
+      }
+    } else {
+      const errMsg = data.type === 'config_error'
+        ? `⚠ ${data.error}`
+        : `Error: ${data.error}`;
+      addMessage('assistant', errMsg);
+      showToast(errMsg, 'error');
+    }
+  } catch(e) {
+    hideTyping();
+    addMessage('assistant', 'Connection error. Is the Flask server running?');
+    showToast('Connection error', 'error');
+  } finally {
+    state.sending = false;
+    sendBtn.disabled = false;
+    chatInput.focus();
+  }
+}
+
+// Prompt chips
+document.querySelectorAll('[data-prompt]').forEach(chip => {
+  chip.addEventListener('click', () => {
+    chatInput.value = chip.dataset.prompt;
+    autoResize(chatInput);
+    chatInput.focus();
+    sendMessage();
+  });
+});
+
+// Reset
+$('reset-btn').addEventListener('click', async () => {
+  await fetch(`${API}/api/reset`, { method: 'POST' });
+  chatMessages.innerHTML = '';
+  chatMessages.appendChild(chatWelcome);
+  showToast('Conversation cleared', 'success');
+});
+
+// Input handlers
+chatInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
+});
+chatInput.addEventListener('input', () => autoResize(chatInput));
+sendBtn.addEventListener('click', sendMessage);
+
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+}
+
+// ═══════════════════════════════════════════════════════════════
+// UTILITIES
+// ═══════════════════════════════════════════════════════════════
+
+function fmtNum(n) {
+  if (n === null || n === undefined) return '—';
+  return Number(n).toLocaleString();
+}
+
+function fmtPrice(n) {
+  if (n === null || n === undefined || n === '—') return '—';
+  const num = Number(n);
+  if (num >= 1_000_000) return '$' + (num/1_000_000).toFixed(2) + 'M';
+  if (num >= 1_000)     return '$' + (num/1_000).toFixed(1) + 'K';
+  return '$' + num.toFixed(2);
+}
+
+function escHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+let toastTimer;
+function showToast(msg, type = '', duration = 2500) {
+  const toast = $('toast');
+  toast.textContent = msg;
+  toast.className = `show ${type}`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { toast.className = ''; }, duration);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// BOOT
+// ═══════════════════════════════════════════════════════════════
+init();
+</script>
+</body>
+</html>
